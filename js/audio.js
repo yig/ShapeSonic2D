@@ -27,8 +27,14 @@ export const VOLUME = {
   corner: { a: 0.6, b: 0.4 },
 };
 
-// Gain smoothing time constants (s). Contact is abrupt by design.
-const TAU = { guidance: 0.04, contact: 0.004, corner: 0.02 };
+// Gain smoothing time constants (s): short enough to track the finger with
+// little lag (~3 tau to settle), long enough to avoid clicks. Contact is the
+// most abrupt by design.
+const TAU = { guidance: 0.008, contact: 0.003, corner: 0.006 };
+// Samples quieter than this at the ends of a decoded file are trimmed. The
+// MP3s carry ~47 ms of encoder padding at the start, which would delay plucks
+// and leave a gap at every loop point.
+const SILENCE = 1e-4;
 const PLUCK_INTERVAL = 0.45; // s between re-triggered plucks
 // Relative loudness of each sound family (the recordings differ in level).
 const MIX = { guidance: 0.5, contact: 0.45, corner: 0.9 };
@@ -39,6 +45,19 @@ const FILES = {
   edge: ['audio/edge-left.mp3', 'audio/edge-right.mp3'],
   corner: ['audio/corner-left.mp3', 'audio/corner-right.mp3'],
 };
+
+function trimSilence(ctx, buffer) {
+  const chans = [...Array(buffer.numberOfChannels).keys()].map((c) => buffer.getChannelData(c));
+  const loud = (i) => chans.some((d) => Math.abs(d[i]) > SILENCE);
+  let start = 0;
+  let end = buffer.length;
+  while (start < end && !loud(start)) start++;
+  while (end > start && !loud(end - 1)) end--;
+  if (end - start === buffer.length || end <= start) return buffer;
+  const out = ctx.createBuffer(chans.length, end - start, buffer.sampleRate);
+  chans.forEach((d, c) => out.copyToChannel(d.subarray(start, end), c));
+  return out;
+}
 
 export function falloff(x, D, { a, b }) {
   return x >= 0 && x < D ? a + b * Math.exp((-5 * x) / D) : 0;
@@ -73,7 +92,8 @@ export class Sonifier {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Could not load ${url}`);
       const bytes = await res.arrayBuffer();
-      return new Promise((ok, fail) => ctx.decodeAudioData(bytes, ok, fail));
+      const decoded = await new Promise((ok, fail) => ctx.decodeAudioData(bytes, ok, fail));
+      return trimSilence(ctx, decoded);
     };
     const [guidance, contact, edge, corner] = await Promise.all([
       load(FILES.guidance),
@@ -81,7 +101,7 @@ export class Sonifier {
       Promise.all(FILES.edge.map(load)),
       Promise.all(FILES.corner.map(load)),
     ]);
-    this.buffers = { edge, corner };
+    this.buffers = { guidance, contact, edge, corner };
     await resumed;
 
     this.master = ctx.createGain();

@@ -65,6 +65,17 @@ try {
   for (let i = 0; i < 50; i++) { if (await evaluate('shapesonic.sonifier.ready')) break; await sleep(100); }
   check(await evaluate('shapesonic.sonifier.ready'), 'audio engine started and sounds decoded');
   check(await evaluate(`document.getElementById('start').hidden`), 'start overlay dismissed');
+  const leading = await evaluate(`(() => {
+    const b = shapesonic.sonifier.buffers;
+    const lead = (buf) => {
+      const ch = [...Array(buf.numberOfChannels).keys()].map((c) => buf.getChannelData(c));
+      let i = 0;
+      while (i < buf.length && ch.every((d) => Math.abs(d[i]) <= 1e-4)) i++;
+      return (1000 * i) / buf.sampleRate;
+    };
+    return Math.max(...[b.guidance, ...b.contact, ...b.edge, ...b.corner].map(lead));
+  })()`);
+  check(leading < 1, `decoded sounds start without silence (max lead ${leading.toFixed(2)} ms)`);
 
   const field = await evaluate(`(() => { const f = shapesonic.state.field; return { W: f.W, H: f.H, fit: f.fit, corners: f.corners, guidanceD: f.guidanceD, cornerD: f.cornerD, contactD: f.contactD }; })()`);
   check(Math.abs(field.fit.y + field.fit.h / 2 - 300) < 1 && field.W === 800 && field.H === 600, `square centered in 800x600 (fit ${JSON.stringify(field.fit)})`);
@@ -106,6 +117,17 @@ try {
   await touch('touchEnd', []);
   L = await levels();
   check(L.every((h) => h.guidance === 0 && h.corner === 0 && h.contact.every((v) => v === 0)), 'all fingers lifted: silent');
+
+  // Audio is updated synchronously from input events, not only per frame.
+  const syncUpdates = await evaluate(`(() => {
+    const s = shapesonic.sonifier; let n = 0; const orig = s.update;
+    s.update = function (lv) { n++; return orig.call(this, lv); };
+    const ev = (type, x) => document.getElementById('stage').dispatchEvent(new PointerEvent(type,
+      { pointerId: 77, pointerType: 'touch', clientX: x, clientY: 300, bubbles: true, cancelable: true }));
+    ev('pointerdown', 100); ev('pointermove', 120); ev('pointermove', 140); ev('pointerup', 140);
+    s.update = orig; return n;
+  })()`);
+  check(syncUpdates === 4, `audio updated synchronously on each input event (${syncUpdates} of 4)`);
 
   // Touch-order hand mode, driven with synthetic PointerEvents so that single
   // fingers can be lifted. Six touches, all on the right half.

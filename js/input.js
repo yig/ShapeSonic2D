@@ -7,6 +7,11 @@
 //   next five the right hand (the earliest free slot, left hand first).
 // The finger is the lowest free of that hand's five pentatonic slots.
 // A mouse acts as a single fingertip while a button is held.
+//
+// For low latency, onChange() is called on every finger change, so the audio
+// can be updated immediately instead of on the next animation frame. Where
+// supported (Chrome, secure contexts) we also listen to pointerrawupdate,
+// which is delivered as soon as input arrives rather than aligned to frames.
 
 import { HANDS, FINGERS } from './audio.js';
 
@@ -17,9 +22,11 @@ export class FingerTracker {
     this.el = el;
     this.fingers = new Map(); // pointerId -> {id, hand, slot, x, y}
     this.handMode = 'split';
+    this.onChange = null;
 
     el.addEventListener('pointerdown', (e) => this.down(e));
     el.addEventListener('pointermove', (e) => this.move(e));
+    if ('onpointerrawupdate' in window) el.addEventListener('pointerrawupdate', (e) => this.move(e));
     el.addEventListener('pointerup', (e) => this.up(e));
     el.addEventListener('pointercancel', (e) => this.up(e));
     el.addEventListener('lostpointercapture', (e) => this.up(e));
@@ -45,6 +52,11 @@ export class FingerTracker {
       this.el.setPointerCapture(e.pointerId);
     } catch {}
     this.fingers.set(e.pointerId, { id: e.pointerId, hand, slot, x, y });
+    this.changed();
+  }
+
+  changed() {
+    if (this.onChange) this.onChange();
   }
 
   freeSlot(hand) {
@@ -56,15 +68,20 @@ export class FingerTracker {
   move(e) {
     const f = this.fingers.get(e.pointerId);
     if (!f) return;
-    e.preventDefault();
-    Object.assign(f, this.pos(e));
+    if (e.type === 'pointermove') e.preventDefault();
+    const { x, y } = this.pos(e);
+    if (x === f.x && y === f.y) return; // already seen via pointerrawupdate
+    f.x = x;
+    f.y = y;
+    this.changed();
   }
 
   up(e) {
-    this.fingers.delete(e.pointerId);
+    if (this.fingers.delete(e.pointerId)) this.changed();
   }
 
   clear() {
     this.fingers.clear();
+    this.changed();
   }
 }

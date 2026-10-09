@@ -207,6 +207,11 @@ function draw(fingers) {
   }
 }
 
+// Audio follows input events directly (see input.js); each frame also
+// refreshes it, which covers field rebuilds and pluck re-triggering for
+// fingers that are held still.
+tracker.onChange = () => sonifier.update(probe().levels);
+
 function frame() {
   const { fingers, levels } = probe();
   sonifier.update(levels);

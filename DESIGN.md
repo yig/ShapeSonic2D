@@ -57,10 +57,11 @@ test/                 Node and headless-Chrome tests
  PNG/JPG  ─┘   (corners in [0,1]²)   │ classify inside, SDF, filter corners    │
                                      └──────────────────► Field ───────────────┘
                                                             │
- pointer events ─► FingerTracker.fingers ─► probe() each frame: sample SDF and
-                                            corner distance per finger, compute
+ pointer events ─► FingerTracker.fingers ─► probe() on every input event and
+                                            every frame: sample SDF and corner
+                                            distance per finger, compute
                                             per-hand levels ─► Sonifier.update()
-                                                            └► draw()
+                                            (each frame also) └► draw()
 ```
 
 ### Shape
@@ -186,8 +187,11 @@ Volume is `V(x) = a + b·e^(−5x/D)` for `0 ≤ x < D`, and 0 otherwise
 - **Pentatonic fingers.** Each hand has 5 contact voices, made from the same
   loop at playback rates for C D E G A (0, 2, 4, 7, 9 semitones). The finger in
   slot *i* drives voice *i*.
-- **Abrupt contact.** Contact gains change with a 4 ms time constant.
-  Guidance (40 ms) and corner (20 ms) are smoothed more.
+- **Gain smoothing.** Gains move toward their targets with
+  `setTargetAtTime`, settling in about 3 time constants. The time constants are
+  guidance 8 ms, corner 6 ms and contact 3 ms. They are short enough that
+  volume tracks the finger with little lag, and long enough to avoid clicks.
+  Contact is the most abrupt, by design.
 - ◆ **Corner sound is retriggered, not looped.** The pluck recordings decay
   within about 0.5 s, and looping the whole file would leave long gaps. While
   a hand is within range of a corner, a new pluck starts every 0.45 s. It
@@ -203,8 +207,12 @@ Volume is `V(x) = a + b·e^(−5x/D)` for `0 ≤ x < D`, and 0 otherwise
   the recordings' different levels. A master gain is controlled by the volume
   slider.
 - **Graph.** All loops start once, when audio starts, at random offsets, with
-  gain 0. There are 2 guidance and 10 contact loops. Each frame then only sets
+  gain 0. There are 2 guidance and 10 contact loops. Updates then only set
   gain targets. This avoids start/stop clicks and keeps CPU use constant.
+- **Trimmed buffers.** The sound designer's MP3s decode with about 47 ms of
+  silence at the start (encoder padding). That would delay every edge pluck
+  and leave a 47 ms gap at each loop point. After decoding, samples at or below
+  1e-4 are trimmed from both ends of every buffer.
 
 Audio starts from the **Start** button, because browsers require a user
 gesture for audio. On iOS 17 and later, `navigator.audioSession.type =
@@ -215,6 +223,16 @@ gesture for audio. On iOS 17 and later, `navigator.audioSession.type =
 Pointer Events handle touch, pen and mouse uniformly. The canvas sets
 `touch-action: none`, and pinch, double-tap zoom and the context menu are
 suppressed.
+
+- **Low latency.** The tracker calls `onChange` on every finger down, move and
+  up. `main.js` then updates the audio immediately, instead of waiting for the
+  next animation frame, which can save up to one frame (about 16 ms). Where
+  the browser supports it (Chrome, in secure contexts: HTTPS or localhost),
+  the tracker also listens to `pointerrawupdate`. That event arrives as soon
+  as input does, rather than aligned to frames. Moves already seen through it
+  are skipped when the matching `pointermove` arrives. The per-frame update
+  remains, for field rebuilds and for re-plucking while a finger is held
+  still.
 
 - ◆ **Hand.** A touchscreen cannot tell hands apart, so the hand is decided
   when a touch starts, in one of two modes chosen under **Hands** in the menu:
@@ -285,6 +303,8 @@ node test/browser.test.mjs         # headless Chrome over DevTools protocol
   contact just inside, quiet contact deep inside, and the corner sound;
 - the hand and slot assignment, in both hand modes;
 - that the Web Audio gains follow the levels;
+- that the decoded sounds start without silence;
+- that the audio is updated synchronously on each input event;
 - the corner counts for every demo shape;
 - PNG loading with corner detection, using `test/fixtures/triangle.png`, a
   triangle on a white background;
@@ -303,8 +323,8 @@ with `rsvg-convert -w 400`), then run `magick x.png -alpha extract x.pgm`.
 - `<script>` and `<foreignObject>` are removed from loaded SVGs.
 - Hand assignment by screen half is a heuristic. An alternative would be
   clustering touches by proximity.
-- MP3 loops can have a few ms of encoder padding at the loop point. This is
-  inaudible under the ambient sounds, but it could be avoided by trimming the
-  decoded buffers.
+- The remaining latency is the touchscreen, the browser and the audio output.
+  Bluetooth headphones add 150–300 ms; wired headphones or the built-in
+  speaker are much faster.
 - The 34 s loops (1.3 MB each) dominate the download. They could be shortened
   or re-encoded if load time matters.
