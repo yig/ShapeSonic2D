@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const URL_BASE = process.env.URL_BASE || 'http://localhost:8123/';
-const PORT = 9333;
+const PORT = 9300 + Math.floor(Math.random() * 600);
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'shapesonic-'));
 const chrome = spawn(CHROME, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
@@ -106,6 +106,24 @@ try {
   await touch('touchEnd', []);
   L = await levels();
   check(L.every((h) => h.guidance === 0 && h.corner === 0 && h.contact.every((v) => v === 0)), 'all fingers lifted: silent');
+
+  // Touch-order hand mode, driven with synthetic PointerEvents so that single
+  // fingers can be lifted. Six touches, all on the right half.
+  await evaluate(`(() => { const s = document.getElementById('hand-mode'); s.value = 'order'; s.dispatchEvent(new Event('change')); })()`);
+  const pointer = (type, id, x, y) => evaluate(`document.getElementById('stage').dispatchEvent(new PointerEvent('${type}',
+    { pointerId: ${id}, pointerType: 'touch', clientX: ${x}, clientY: ${y}, bubbles: true, cancelable: true }))`);
+  const slotsNow = () => evaluate(`[...shapesonic.tracker.fingers.values()].map(f => [f.hand, f.slot])`);
+  for (let i = 0; i < 6; i++) await pointer('pointerdown', 100 + i, 500 + 40 * i, 500);
+  check(JSON.stringify(await slotsNow()) === '[[0,0],[0,1],[0,2],[0,3],[0,4],[1,0]]', `touch order: first five left, sixth right ${JSON.stringify(await slotsNow())}`);
+  // Lift the second touch; a new touch takes its freed left-hand slot.
+  await pointer('pointerup', 101, 540, 500);
+  await pointer('pointerdown', 106, 300, 100);
+  const last = (await slotsNow()).at(-1);
+  check(JSON.stringify(last) === '[0,1]', `touch order: new touch reuses freed left slot ${JSON.stringify(last)}`);
+  for (const id of [100, 102, 103, 104, 105, 106]) await pointer('pointerup', id, 0, 0);
+  check((await slotsNow()).length === 0, 'touch order: all lifted');
+  check(await evaluate(`localStorage.getItem('shapesonic.handMode')`) === 'order', 'hand mode remembered');
+  await evaluate(`(() => { const s = document.getElementById('hand-mode'); s.value = 'split'; s.dispatchEvent(new Event('change')); })()`);
 
   // Mouse fallback.
   await send('Emulation.setTouchEmulationEnabled', { enabled: false });

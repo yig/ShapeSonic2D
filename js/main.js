@@ -4,7 +4,7 @@ import { DEMO_SHAPES } from './shapes.js';
 import { loadSVGShape, loadShapeFile } from './shape-loader.js';
 import { buildField, cornerDistance } from './field.js';
 import { Sonifier, HANDS, FINGERS, VOLUME, falloff } from './audio.js';
-import { FingerTracker } from './input.js';
+import { FingerTracker, HAND_MODES } from './input.js';
 
 const NOTE_NAMES = ['C', 'D', 'E', 'G', 'A'];
 const FINGER_RADIUS = 26;
@@ -172,7 +172,7 @@ function draw(fingers) {
   }
 
   // Midline hint: which half of the screen is which hand.
-  if (fingers.length === 0) {
+  if (fingers.length === 0 && tracker.handMode === 'split') {
     ctx.strokeStyle = colors.muted;
     ctx.globalAlpha = 0.25;
     ctx.lineWidth = 1;
@@ -223,6 +223,17 @@ function setShow(show) {
   $('show-btn').textContent = show ? 'Hide shape' : 'Show shape';
 }
 
+function setHandMode(mode) {
+  if (!HAND_MODES.includes(mode)) return;
+  tracker.handMode = mode;
+  tracker.clear();
+  $('hand-mode').value = mode;
+  for (const el of document.querySelectorAll('[data-hand-mode]')) el.hidden = el.dataset.handMode !== mode;
+  try {
+    localStorage.setItem('shapesonic.handMode', mode);
+  } catch {}
+}
+
 function setMenuOpen(open) {
   $('menu').hidden = !open;
   $('backdrop').hidden = !open;
@@ -257,6 +268,7 @@ function buildMenu() {
   });
   $('show-toggle').addEventListener('change', (e) => setShow(e.target.checked));
   $('show-btn').addEventListener('click', () => setShow(!state.show));
+  $('hand-mode').addEventListener('change', (e) => setHandMode(e.target.value));
   $('feature-sound').addEventListener('change', (e) => (sonifier.featureSound = e.target.value));
   $('volume').addEventListener('input', (e) => sonifier.setMasterVolume(+e.target.value));
   document.addEventListener('keydown', (e) => {
@@ -301,6 +313,13 @@ readColors();
 resizeCanvas();
 buildMenu();
 setShow(state.show);
+setHandMode(params.get('hands') || (() => {
+  try {
+    return localStorage.getItem('shapesonic.handMode');
+  } catch {
+    return null;
+  }
+})() || 'split');
 $('start-btn').addEventListener('click', startAudio);
 if (params.get('audio') === '0') $('start').hidden = true; // for screenshots/tests
 selectDemo(params.get('shape') || 'circle');

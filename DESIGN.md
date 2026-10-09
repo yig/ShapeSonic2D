@@ -27,6 +27,7 @@ URL parameters, for demos and tests:
 |---|---|
 | `shape=circle\|square\|triangle\|annulus\|cat` | Initial demo shape (default `circle`). |
 | `show=1` | Start with the shape visible. |
+| `hands=split\|order` | Hand assignment mode (overrides the remembered choice). |
 | `audio=0` | Skip the start overlay. No sound plays until audio is started, so this is for screenshots only. |
 
 ## Files
@@ -215,13 +216,22 @@ Pointer Events handle touch, pen and mouse uniformly. The canvas sets
 `touch-action: none`, and pinch, double-tap zoom and the context menu are
 suppressed.
 
-- ◆ **Hand.** A touchscreen cannot tell hands apart, so a touch belongs to the
-  left hand if it *starts* on the left half of the screen. It keeps that hand
-  while it is dragged across the midline. A faint midline is drawn when no
-  finger is down.
+- ◆ **Hand.** A touchscreen cannot tell hands apart, so the hand is decided
+  when a touch starts, in one of two modes chosen under **Hands** in the menu:
+  - **Screen halves** (`split`, the default): a touch belongs to the left hand
+    if it starts on the left half of the screen. It keeps that hand while it is
+    dragged across the midline. A faint midline is drawn when no finger is
+    down.
+  - **Touch order** (`order`): the first five simultaneous touches are the
+    left hand and the next five are the right hand, wherever they are. A new
+    touch takes the earliest free slot, checking the left hand first, so
+    lifting a left-hand finger and touching again stays on the left hand.
+
+  The choice is remembered per browser in `localStorage`. Changing it clears
+  all fingers.
 - ◆ **Finger.** Each new touch takes the lowest free of its hand's 5 slots,
-  which gives it a pentatonic note. A 6th simultaneous touch on one side is
-  ignored.
+  which gives it a pentatonic note. A touch that finds no free slot (a 6th on
+  one side in split mode, or an 11th in order mode) is ignored.
 - **Mouse fallback.** While a mouse button is held, the mouse is one fingertip.
   Hovering is silent, in the same way that a lifted finger is silent.
 - Opening the menu clears all fingers, so sounds stop.
@@ -231,8 +241,8 @@ suppressed.
 - **Top bar.** **☰ *shape name*** opens the pop-up menu, and **Show shape**
   toggles the visualization (also the `S` key).
 - **Menu.** The demo shapes (circle, square, triangle, annulus, cat); **Load SVG
-  or PNG…** (JPEG and WebP also work); the show-shape checkbox; the corner-sound
-  choice; a volume slider; and a status line with the number of detected
+  or PNG…** (JPEG and WebP also work); the show-shape checkbox; the hand mode;
+  the corner-sound choice; a volume slider; and a status line with the number of detected
   corners, or a loading error. Tapping outside the menu, or pressing Esc,
   closes it.
 - **Visualization.** Hidden by default. When shown, it draws the
@@ -273,7 +283,7 @@ node test/browser.test.mjs         # headless Chrome over DevTools protocol
 
 - the per-hand levels: faint guidance far away, loud guidance just outside,
   contact just inside, quiet contact deep inside, and the corner sound;
-- the hand and slot assignment;
+- the hand and slot assignment, in both hand modes;
 - that the Web Audio gains follow the levels;
 - the corner counts for every demo shape;
 - PNG loading with corner detection, using `test/fixtures/triangle.png`, a

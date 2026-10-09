@@ -29,6 +29,14 @@
     <p class="hint">Filled regions are inside the shape; empty or background-coloured regions are outside.</p>
     <h2>Options</h2>
     <label class="row"><input id="show-toggle" type="checkbox"> Show shape and corners <kbd>S</kbd></label>
+    <label class="row">Hands
+      <select id="hand-mode">
+        <option value="split">Screen halves</option>
+        <option value="order">Touch order</option>
+      </select>
+    </label>
+    <p class="hint" data-hand-mode="split">Touches starting on the left half are the left hand.</p>
+    <p class="hint" data-hand-mode="order" hidden>The first five touches are the left hand, the next five the right hand.</p>
     <label class="row">Corner sound
       <select id="feature-sound">
         <option value="corner">Bell (corner)</option>
@@ -48,7 +56,9 @@
         <li><b>Tone</b>: a finger is inside the shape. It is loudest at the edge and fades toward the middle. Each finger plays its own note.</li>
         <li><b>Bell</b>: a finger is near a corner.</li>
       </ul>
-      <p>Touches on the left half of the screen are the left hand (left ear, lower pitch); the right half is the right hand. With a mouse, hold the button and drag.</p>
+      <p data-hand-mode="split">Touches on the left half of the screen are the left hand (left ear, lower pitch); the right half is the right hand.</p>
+      <p data-hand-mode="order" hidden>Your first five touches are the left hand (left ear, lower pitch); the next five are the right hand.</p>
+      <p>The menu (☰) can switch how touches are assigned to hands. With a mouse, hold the button and drag.</p>
       <button id="start-btn" type="button">Start</button>
       <p id="start-error" class="status error" role="alert"></p>
     </div>

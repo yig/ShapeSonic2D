@@ -6,4 +6,6 @@ UI:
 
 * Toggle to show the shape. By default the shape should be hidden. Visualize detected corners as circles.
 
+* A toggle so that the first 5 touches are from one hand and the second from the other, rather than dividing the screen.
+
 Save and maintain a document describing the implementation's design and architecture.
