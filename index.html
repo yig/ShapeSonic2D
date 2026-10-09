@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>ShapeSonic 2D</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="stage" aria-label="Touch area. Explore the hidden shape by touch and listen."></canvas>
+
+  <div id="topbar">
+    <button id="menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu">
+      <span aria-hidden="true">☰</span> <span id="shape-name">Shape</span>
+    </button>
+    <button id="show-btn" type="button" aria-pressed="false">Show shape</button>
+  </div>
+
+  <div id="backdrop" hidden></div>
+  <div id="menu" role="dialog" aria-label="Shape menu" hidden>
+    <h2>Shape</h2>
+    <div class="shape-list"></div>
+    <label class="file-btn">
+      Load SVG or PNG…
+      <input id="file" type="file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp">
+    </label>
+    <p class="hint">Filled regions are inside the shape; empty or background-coloured regions are outside.</p>
+    <h2>Options</h2>
+    <label class="row"><input id="show-toggle" type="checkbox"> Show shape and corners <kbd>S</kbd></label>
+    <label class="row">Corner sound
+      <select id="feature-sound">
+        <option value="corner">Bell (corner)</option>
+        <option value="edge">Pluck (edge)</option>
+      </select>
+    </label>
+    <label class="row">Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+    <p id="status" class="status" role="status"></p>
+  </div>
+
+  <div id="start">
+    <div class="card">
+      <h1>ShapeSonic 2D</h1>
+      <p>A shape is hidden on the screen. Find it by touch and listen. Headphones help.</p>
+      <ul>
+        <li><b>Ambient hum</b>: you are outside; it grows louder as you get closer.</li>
+        <li><b>Tone</b>: a finger is inside the shape. It is loudest at the edge and fades toward the middle. Each finger plays its own note.</li>
+        <li><b>Bell</b>: a finger is near a corner.</li>
+      </ul>
+      <p>Touches on the left half of the screen are the left hand (left ear, lower pitch); the right half is the right hand. With a mouse, hold the button and drag.</p>
+      <button id="start-btn" type="button">Start</button>
+      <p id="start-error" class="status error" role="alert"></p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
