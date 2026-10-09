@@ -86,7 +86,6 @@ async function setShape(loadShape, id = null) {
     for (const b of document.querySelectorAll('.shape-list button')) {
       b.setAttribute('aria-pressed', String(b.dataset.id === id));
     }
-    $('shape-name').textContent = state.shape.name;
     await rebuildField();
   } catch (err) {
     console.error(err);

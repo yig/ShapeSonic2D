@@ -256,8 +256,11 @@ suppressed.
 
 ## UI (`main.js`, `index.html`)
 
-- **Top bar.** **☰ *shape name*** opens the pop-up menu, and **Show shape**
-  toggles the visualization (also the `S` key).
+- **Top bar.** **☰ Menu** opens the pop-up menu, and **Show shape** toggles
+  the visualization (also the `S` key). The top bar deliberately never names
+  the current shape, since that would give it away. The name appears only
+  inside the menu: as the highlighted demo button, and in the status line,
+  which also reports the corner count.
 - **Menu.** The demo shapes (circle, square, triangle, annulus, cat); **Load SVG
   or PNG…** (JPEG and WebP also work); the show-shape checkbox; the hand mode;
   the corner-sound choice; a volume slider; and a status line with the number of detected
